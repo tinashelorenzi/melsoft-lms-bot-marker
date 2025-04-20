@@ -1,0 +1,10 @@
+{
+  "tokens": [
+    {
+      "token": "melsoft-lms-operator-token-2023",
+      "description": "Operator frontend token",
+      "allowed_roles": ["operator"],
+      "created_at": "2023-01-01T00:00:00Z"
+    }
+  ]
+} 
