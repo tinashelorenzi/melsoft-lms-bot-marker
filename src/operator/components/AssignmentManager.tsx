@@ -13,6 +13,7 @@ export const AssignmentManager: React.FC = () => {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [rawResponse, setRawResponse] = useState<string | null>(null);
 
   useEffect(() => {
     fetchAssignments();
@@ -21,6 +22,8 @@ export const AssignmentManager: React.FC = () => {
   const fetchAssignments = async () => {
     setIsLoading(true);
     setError("");
+    setRawResponse(null);
+
     try {
       const token = localStorage.getItem("operatorToken");
       if (!token) {
@@ -35,15 +38,20 @@ export const AssignmentManager: React.FC = () => {
       });
       console.log("Response status:", response.status);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error("Error response:", errorData);
+      // Store the raw response for debugging
+      const responseText = await response.text();
+      setRawResponse(responseText);
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", parseError);
         throw new Error(
-          `Failed to fetch assignments: ${response.status} ${response.statusText}`
+          `Invalid JSON response: ${responseText.substring(0, 100)}...`
         );
       }
 
-      const data = await response.json();
       console.log("Fetched assignments:", data);
 
       if (!Array.isArray(data)) {
@@ -53,7 +61,6 @@ export const AssignmentManager: React.FC = () => {
       }
 
       setAssignments(data);
-      setIsLoading(false);
     } catch (err) {
       console.error("Error fetching assignments:", err);
       setError(
@@ -213,17 +220,39 @@ export const AssignmentManager: React.FC = () => {
     }
   };
 
+  // Function to retry fetching assignments
+  const handleRetry = () => {
+    fetchAssignments();
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h2 className="text-2xl font-bold mb-6">Assignment Manager</h2>
+    <div>
+      <h2 className="text-2xl font-bold mb-6">Assignments</h2>
 
       {error && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
           <div className="flex">
             <div className="ml-3">
               <p className="text-sm text-red-700">{error}</p>
+              <button
+                onClick={handleRetry}
+                className="mt-2 text-sm font-medium text-red-700 hover:text-red-900"
+              >
+                Retry
+              </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {rawResponse && error && (
+        <div className="bg-gray-50 border border-gray-300 p-4 mb-4 rounded">
+          <h3 className="text-sm font-medium text-gray-700 mb-2">
+            Raw server response (for debugging):
+          </h3>
+          <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-40">
+            {rawResponse}
+          </pre>
         </div>
       )}
 
@@ -312,7 +341,29 @@ export const AssignmentManager: React.FC = () => {
             </div>
             <div className="border-t border-gray-200">
               {isLoading ? (
-                <div className="px-4 py-5 sm:px-6">Loading assignments...</div>
+                <div className="px-4 py-5 sm:px-6 flex items-center">
+                  <svg
+                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                  Loading assignments...
+                </div>
               ) : assignments.length === 0 ? (
                 <div className="px-4 py-5 sm:px-6 text-gray-500">
                   No assignments found. Create one above.

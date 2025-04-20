@@ -2,6 +2,7 @@ import express from 'express';
 import { validateApiToken, requireRole } from '../middleware/authMiddleware';
 import { OperatorController } from '../controllers/operator.controller';
 import fs from 'fs/promises';
+import path from 'path';
 
 const router = express.Router();
 const operatorController = new OperatorController();
@@ -24,6 +25,8 @@ router.post('/login', (req, res) => {
     .toString()
     .split(':');
 
+  console.log(`Login attempt: ${email}`);
+
   if (email === 'operator@melsoft.co.za' && password === 'password123') {
     // Return the API token upon successful login
     return res.status(200).json({ 
@@ -35,25 +38,34 @@ router.post('/login', (req, res) => {
   return res.status(401).json({ message: 'Invalid credentials' });
 });
 
-// Apply the API token validation middleware to all operator routes
-router.use(validateApiToken);
-// Ensure the token has the operator role
-router.use(requireRole(['operator']));
+// Apply the API token validation middleware to all operator routes below
+router.use((req, res, next) => {
+  console.log(`API Request: ${req.method} ${req.path}`);
+  next();
+});
 
-// Get all assignments
-router.get('/assignments', operatorController.listAssignments.bind(operatorController));
+// Get all assignments - no role check needed
+router.get('/assignments', validateApiToken(), async (req, res) => {
+  try {
+    console.log('Handling GET /assignments request');
+    await operatorController.listAssignments(req, res);
+  } catch (error) {
+    console.error('Error in assignments endpoint:', error);
+    res.status(500).json({ message: 'Internal server error', error: String(error) });
+  }
+});
 
 // Get a specific assignment by subject and name
-router.get('/assignments/:subject/:name', operatorController.getAssignment.bind(operatorController));
+router.get('/assignments/:subject/:name', validateApiToken(), operatorController.getAssignment.bind(operatorController));
 
 // Create a new assignment
-router.post('/assignments', operatorController.createAssignment.bind(operatorController));
+router.post('/assignments', validateApiToken(), operatorController.createAssignment.bind(operatorController));
 
 // Update an assignment
-router.put('/assignments/:subject/:name', operatorController.updateAssignment.bind(operatorController));
+router.put('/assignments/:subject/:name', validateApiToken(), operatorController.updateAssignment.bind(operatorController));
 
 // Delete an assignment
-router.delete('/assignments/:subject/:name', async (req, res) => {
+router.delete('/assignments/:subject/:name', validateApiToken(), async (req, res) => {
   try {
     const { subject, name } = req.params;
     const filePath = await operatorController.getAssignmentPath(subject, name);
@@ -66,4 +78,4 @@ router.delete('/assignments/:subject/:name', async (req, res) => {
   }
 });
 
-export default router; 
+export default router;

@@ -26,14 +26,21 @@ export const Login: React.FC<LoginProps> = ({ onLogin }) => {
         },
       });
 
-      const data = await response.json();
+      if (!response.ok) {
+        if (response.status === 401) {
+          setError("Invalid email or password");
+        } else {
+          setError("An error occurred during login");
+        }
+        return;
+      }
 
-      if (response.ok) {
-        // Store the token in localStorage
+      const data = await response.json();
+      if (data && data.token) {
         localStorage.setItem("operatorToken", data.token);
         onLogin(true);
       } else {
-        setError(data.message || "Invalid credentials");
+        setError("Invalid response from server");
       }
     } catch (err) {
       console.error("Login error:", err);
