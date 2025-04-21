@@ -4,6 +4,7 @@ import { AssignmentManager } from "./components/AssignmentManager";
 import { Marking } from "./components/Marking";
 import { Layout } from "./components/Layout";
 import { MarkingStudio } from "./components/MarkingStudio";
+import { TokenManager } from "./components/TokenManager";
 
 interface Course {
   id: string;
@@ -129,6 +130,21 @@ export const App: React.FC = () => {
     setCurrentPage(page);
   };
 
+  const renderPage = () => {
+    switch (currentPage) {
+      case "assignments":
+        return <AssignmentManager assignments={assignments} />;
+      case "marking":
+        return <Marking assignments={assignments} />;
+      case "studio":
+        return <MarkingStudio courses={courses} assignments={assignments} />;
+      case "tokens":
+        return <TokenManager />;
+      default:
+        return <AssignmentManager assignments={assignments} />;
+    }
+  };
+
   if (!isAuthenticated) {
     return <Login onLogin={handleLogin} />;
   }
@@ -178,11 +194,7 @@ export const App: React.FC = () => {
       currentPage={currentPage}
       onNavigate={handleNavigate}
     >
-      {currentPage === "assignments" && <AssignmentManager />}
-      {currentPage === "marking" && <Marking />}
-      {currentPage === "studio" && (
-        <MarkingStudio courses={courses} assignments={assignments} />
-      )}
+      {renderPage()}
     </Layout>
   );
 };

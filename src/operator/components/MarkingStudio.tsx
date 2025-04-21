@@ -25,9 +25,10 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
   const [showStudio, setShowStudio] = useState(false);
   const [debugInfo, setDebugInfo] = useState<Record<string, any> | null>(null);
 
-  const filteredAssignments = assignments.filter(
-    (assignment) => assignment.subject === selectedCourse
-  );
+  const filteredAssignments =
+    assignments?.filter(
+      (assignment) => assignment.subject === selectedCourse
+    ) || [];
 
   const handleAnswerChange = (questionId: string, value: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -41,7 +42,7 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
       const submission: Submission = {
         id: Date.now().toString(),
         assignmentName:
-          assignments.find((a) => a.id === selectedAssignment)?.name || "",
+          assignments?.find((a) => a.id === selectedAssignment)?.name || "",
         subject: selectedCourse,
         studentId: "test-student",
         answers: Object.entries(answers).map(([questionId, answer]) => ({
@@ -87,13 +88,13 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
       setDebugInfo(null);
 
       const token = localStorage.getItem("operatorToken");
-      const assignment = assignments.find((a) => a.id === selectedAssignment);
+      const assignment = assignments?.find((a) => a.id === selectedAssignment);
       if (!assignment) {
         throw new Error("Assignment not found");
       }
 
       // Get the selected course name from the courses array
-      const selectedCourseObj = courses.find(
+      const selectedCourseObj = courses?.find(
         (course) => course.id === selectedCourse
       );
       if (!selectedCourseObj) {
@@ -203,7 +204,7 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
               <option key="default" value="">
                 Select a course
               </option>
-              {courses.map((course) => (
+              {courses?.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.name}
                 </option>

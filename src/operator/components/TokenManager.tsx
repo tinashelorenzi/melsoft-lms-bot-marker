@@ -15,6 +15,9 @@ interface WhitelistedToken {
   createdAt: string;
 }
 
+// API base URL - change this to match your server
+const API_BASE_URL = "http://localhost:3000";
+
 export const TokenManager: React.FC = () => {
   const [tokens, setTokens] = useState<Token[]>([]);
   const [whitelistedTokens, setWhitelistedTokens] = useState<
@@ -33,7 +36,17 @@ export const TokenManager: React.FC = () => {
 
   const loadTokens = async () => {
     try {
-      const response = await axios.get("/api/operator/tokens");
+      const token = localStorage.getItem("operatorToken");
+      if (!token) {
+        setError("No authentication token found");
+        return;
+      }
+
+      const response = await axios.get(`${API_BASE_URL}/api/operator/tokens`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       setTokens(response.data.tokens);
     } catch (err) {
       setError("Failed to load tokens");
@@ -43,7 +56,20 @@ export const TokenManager: React.FC = () => {
 
   const loadWhitelistedTokens = async () => {
     try {
-      const response = await axios.get("/api/operator/whitelist");
+      const token = localStorage.getItem("operatorToken");
+      if (!token) {
+        setError("No authentication token found");
+        return;
+      }
+
+      const response = await axios.get(
+        `${API_BASE_URL}/api/operator/whitelist`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
       setWhitelistedTokens(response.data.tokens);
     } catch (err) {
       setError("Failed to load whitelisted tokens");
@@ -62,10 +88,24 @@ export const TokenManager: React.FC = () => {
     setSuccess(null);
 
     try {
-      const response = await axios.post("/api/operator/tokens", {
-        name: newTokenName,
-        role: newTokenRole,
-      });
+      const token = localStorage.getItem("operatorToken");
+      if (!token) {
+        setError("No authentication token found");
+        return;
+      }
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/operator/tokens`,
+        {
+          name: newTokenName,
+          role: newTokenRole,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
       setTokens([...tokens, response.data]);
       setNewTokenName("");
@@ -85,7 +125,21 @@ export const TokenManager: React.FC = () => {
     setSuccess(null);
 
     try {
-      await axios.post("/api/operator/whitelist", { token });
+      const operatorToken = localStorage.getItem("operatorToken");
+      if (!operatorToken) {
+        setError("No authentication token found");
+        return;
+      }
+
+      await axios.post(
+        `${API_BASE_URL}/api/operator/whitelist`,
+        { token },
+        {
+          headers: {
+            Authorization: `Bearer ${operatorToken}`,
+          },
+        }
+      );
       await loadWhitelistedTokens();
       setSuccess("Token whitelisted successfully");
     } catch (err) {
@@ -102,7 +156,17 @@ export const TokenManager: React.FC = () => {
     setSuccess(null);
 
     try {
-      await axios.delete(`/api/operator/whitelist/${token}`);
+      const operatorToken = localStorage.getItem("operatorToken");
+      if (!operatorToken) {
+        setError("No authentication token found");
+        return;
+      }
+
+      await axios.delete(`${API_BASE_URL}/api/operator/whitelist/${token}`, {
+        headers: {
+          Authorization: `Bearer ${operatorToken}`,
+        },
+      });
       await loadWhitelistedTokens();
       setSuccess("Token removed from whitelist");
     } catch (err) {
@@ -205,7 +269,8 @@ export const TokenManager: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => whitelistToken(token.token)}
-                      className="text-blue-600 hover:text-blue-900 mr-2"
+                      disabled={loading}
+                      className="text-indigo-600 hover:text-indigo-900 mr-2"
                     >
                       Whitelist
                     </button>
@@ -256,6 +321,7 @@ export const TokenManager: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap">
                     <button
                       onClick={() => removeFromWhitelist(token.token)}
+                      disabled={loading}
                       className="text-red-600 hover:text-red-900"
                     >
                       Remove

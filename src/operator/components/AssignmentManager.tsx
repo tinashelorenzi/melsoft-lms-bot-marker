@@ -2,8 +2,15 @@ import React, { useState, useEffect } from "react";
 import { Assignment } from "../../types";
 import { AssignmentEditor } from "./AssignmentEditor";
 
-export const AssignmentManager: React.FC = () => {
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+interface AssignmentManagerProps {
+  assignments: Assignment[];
+}
+
+export const AssignmentManager: React.FC<AssignmentManagerProps> = ({
+  assignments: initialAssignments,
+}) => {
+  const [assignments, setAssignments] =
+    useState<Assignment[]>(initialAssignments);
   const [selectedAssignment, setSelectedAssignment] =
     useState<Assignment | null>(null);
   const [newAssignment, setNewAssignment] = useState<Partial<Assignment>>({
@@ -16,8 +23,8 @@ export const AssignmentManager: React.FC = () => {
   const [rawResponse, setRawResponse] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAssignments();
-  }, []);
+    setAssignments(initialAssignments);
+  }, [initialAssignments]);
 
   const fetchAssignments = async () => {
     setIsLoading(true);

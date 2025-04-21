@@ -24,4 +24,11 @@ export interface UpdateAssignmentDto {
   name?: string;
   subject?: string;
   questions?: Question[];
+}
+
+export interface TokenInfo {
+  token: string;
+  name: string;
+  role: string;
+  createdAt: string;
 } 

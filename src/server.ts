@@ -2,9 +2,10 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import operatorRoutes from './routes/operatorRoutes';
+import tokenRoutes from './routes/tokenRoutes';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
@@ -13,6 +14,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // API routes
 app.use('/api/operator', operatorRoutes);
+app.use('/api/operator', tokenRoutes);
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {

@@ -8,6 +8,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaFlask,
+  FaKey,
 } from "react-icons/fa";
 
 interface LayoutProps {
@@ -26,6 +27,7 @@ export const Layout: React.FC<LayoutProps> = ({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const navigationItems = [
+    { id: "tokens", label: "API Tokens", icon: FaKey },
     { id: "assignments", label: "Assignments", icon: FaBook },
     { id: "marking", label: "Marking", icon: FaChalkboardTeacher },
     { id: "studio", label: "Marking Studio", icon: FaFlask },
