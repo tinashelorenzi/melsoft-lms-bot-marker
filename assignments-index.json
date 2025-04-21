@@ -1,0 +1,37 @@
+{
+  "assignments": [
+    {
+      "id": "sample",
+      "name": "sample",
+      "normalizedName": "sample",
+      "subject": "sample",
+      "normalizedSubject": "sample",
+      "path": "/assignments/sample/sample.json",
+      "updatedAt": "2025-04-20T21:56:14.405Z",
+      "questionCount": 1
+    },
+    {
+      "id": "testing-assignment",
+      "name": "Testing Assignment",
+      "normalizedName": "testing-assignment",
+      "subject": "Testing-Sub",
+      "normalizedSubject": "testing-sub",
+      "path": "/assignments/Testing-Sub/Testing Assignment.json",
+      "updatedAt": "2025-04-20T23:11:25.142Z",
+      "questionCount": 1
+    }
+  ],
+  "subjects": [
+    {
+      "id": "sample",
+      "name": "sample",
+      "path": "/assignments/sample"
+    },
+    {
+      "id": "testing-sub",
+      "name": "Testing-Sub",
+      "path": "/assignments/Testing-Sub"
+    }
+  ],
+  "lastUpdated": "2025-04-21T11:38:24.125Z"
+}

@@ -1,7 +1,6 @@
+// src/operator/components/MarkingStudio.tsx
 import React, { useState } from "react";
 import { Question, Submission, MarkedSubmission } from "../../types/marker";
-
-const API_URL = "http://localhost:3000";
 
 interface MarkingStudioProps {
   courses: { id: string; name: string }[];
@@ -79,17 +78,29 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
     try {
       setLoading(true);
       setError("");
-      setShowStudio(true);
 
       const token = localStorage.getItem("operatorToken");
       const assignment = assignments.find((a) => a.id === selectedAssignment);
+
       if (!assignment) {
         throw new Error("Assignment not found");
       }
 
+      // Get the selected course name from the courses array
+      const selectedCourseObj = courses.find(
+        (course) => course.id === selectedCourse
+      );
+      if (!selectedCourseObj) {
+        throw new Error("Course not found");
+      }
+
+      console.log(
+        `Loading assignment: Subject=${selectedCourseObj.name}, Name=${assignment.name}`
+      );
+
       const response = await fetch(
         `/api/operator/assignments/${encodeURIComponent(
-          assignment.subject
+          selectedCourseObj.name
         )}/${encodeURIComponent(assignment.name)}`,
         {
           headers: {
@@ -114,6 +125,7 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
         }))
       );
       setAnswers({});
+      setShowStudio(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load questions");
       setShowStudio(false);

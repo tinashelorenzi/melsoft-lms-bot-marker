@@ -1,9 +1,11 @@
+// src/index.ts
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import path from 'path';
 import fs from 'fs/promises';
 import operatorRoutes from './routes/operatorRoutes';
+import { buildAssignmentsIndex } from './services/assignmentIndexService';
 
 // Load environment variables
 dotenv.config();
@@ -103,6 +105,27 @@ app.get('/', (req, res) => {
   res.json({ message: 'Welcome to LMS Bot Marker API', status: 'healthy' });
 });
 
+// Add a route to rebuild the index manually if needed
+app.post('/api/admin/rebuild-index', async (req, res) => {
+  try {
+    const index = await buildAssignmentsIndex(true); // Force rebuild
+    res.json({
+      message: 'Assignment index rebuilt successfully',
+      stats: {
+        assignments: index.assignments.length,
+        subjects: index.subjects.length,
+        lastUpdated: index.lastUpdated
+      }
+    });
+  } catch (error) {
+    console.error('Error rebuilding index:', error);
+    res.status(500).json({ 
+      message: 'Error rebuilding index', 
+      error: String(error)
+    });
+  }
+});
+
 // Error handler middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Unhandled error:', err);
@@ -114,6 +137,10 @@ const startServer = async () => {
   try {
     await ensureWhitelistExists();
     await ensureAssignmentsDirExists();
+    
+    // Build or update the assignments index
+    console.log('Initializing assignments index...');
+    await buildAssignmentsIndex(); // No need to force rebuild
     
     app.listen(port, () => {
       console.log(`Server is running on port ${port}`);

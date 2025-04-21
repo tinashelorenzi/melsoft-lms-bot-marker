@@ -1,7 +1,14 @@
+// src/controllers/operator.controller.ts
 import { Request, Response } from 'express';
 import fs from 'fs/promises';
 import path from 'path';
 import { CreateAssignmentDto, UpdateAssignmentDto, Assignment } from '../types';
+import { 
+  getAssignmentIndex, 
+  findAssignment, 
+  updateAssignmentInIndex, 
+  removeAssignmentFromIndex 
+} from '../services/assignmentIndexService';
 
 const ASSIGNMENTS_DIR = path.join(process.cwd(), 'assignments');
 
@@ -22,41 +29,35 @@ export class OperatorController {
 
   async listAssignments(req: Request, res: Response) {
     try {
-      await this.ensureDirectoryExists(ASSIGNMENTS_DIR);
+      // Use the index instead of scanning directories
+      const index = await getAssignmentIndex();
       
-      const subjects = await fs.readdir(ASSIGNMENTS_DIR);
-      const assignments: Assignment[] = [];
-      
-      for (const subject of subjects) {
-        const subjectDir = path.join(ASSIGNMENTS_DIR, subject);
-        try {
-          const files = await fs.readdir(subjectDir);
-          
-          for (const file of files) {
-            if (file.endsWith('.json')) {
-              try {
-                const filePath = path.join(subjectDir, file);
-                const content = await fs.readFile(filePath, 'utf-8');
-                const assignment: Assignment = JSON.parse(content);
-                assignments.push(assignment);
-              } catch (error) {
-                console.error(`Error reading assignment file ${file}:`, error);
-                // Continue with other files even if one fails
-                continue;
-              }
-            }
+      // Convert index entries to Assignment objects
+      const assignments: Assignment[] = await Promise.all(
+        index.assignments.map(async (entry) => {
+          try {
+            const filePath = path.join(process.cwd(), entry.path);
+            const content = await fs.readFile(filePath, 'utf-8');
+            return JSON.parse(content) as Assignment;
+          } catch (error) {
+            console.error(`Error reading assignment file ${entry.path}:`, error);
+            // Return a minimal assignment object if file can't be read
+            return {
+              id: entry.id,
+              name: entry.name,
+              subject: entry.subject,
+              questions: [],
+              createdAt: entry.updatedAt,
+              updatedAt: entry.updatedAt
+            };
           }
-        } catch (error) {
-          console.error(`Error reading subject directory ${subject}:`, error);
-          // Continue with other subjects even if one fails
-          continue;
-        }
-      }
+        })
+      );
       
       res.json(assignments);
     } catch (error) {
       console.error('Error listing assignments:', error);
-      res.status(500).json({ message: 'Error listing assignments' });
+      res.status(500).json({ message: 'Error listing assignments', error: String(error) });
     }
   }
 
@@ -72,11 +73,17 @@ export class OperatorController {
         updatedAt: new Date().toISOString(),
       };
 
+      // Write the assignment file
       await fs.writeFile(filePath, JSON.stringify(newAssignment, null, 2));
+      
+      // Update the index
+      const fileName = path.basename(filePath);
+      await updateAssignmentInIndex(newAssignment, assignment.subject, fileName);
+      
       res.status(201).json(newAssignment);
     } catch (error) {
       console.error('Error creating assignment:', error);
-      res.status(500).json({ message: 'Error creating assignment' });
+      res.status(500).json({ message: 'Error creating assignment', error: String(error) });
     }
   }
 
@@ -84,8 +91,22 @@ export class OperatorController {
     try {
       const { subject, name } = req.params;
       const updates: UpdateAssignmentDto = req.body;
-      const filePath = await this.getAssignmentPath(subject, name);
-
+      
+      // Find the assignment in the index first
+      const indexEntry = await findAssignment(subject, name);
+      
+      if (!indexEntry) {
+        return res.status(404).json({ 
+          message: 'Assignment not found',
+          subject,
+          name
+        });
+      }
+      
+      // Get the actual file path
+      const filePath = path.join(process.cwd(), indexEntry.path);
+      
+      // Read the existing assignment
       const existingContent = await fs.readFile(filePath, 'utf-8');
       const existingAssignment: Assignment = JSON.parse(existingContent);
 
@@ -95,25 +116,91 @@ export class OperatorController {
         updatedAt: new Date().toISOString(),
       };
 
+      // Write the updated assignment
       await fs.writeFile(filePath, JSON.stringify(updatedAssignment, null, 2));
+      
+      // Update the index
+      const fileName = path.basename(filePath);
+      await updateAssignmentInIndex(updatedAssignment, subject, fileName);
+      
       res.json(updatedAssignment);
     } catch (error) {
       console.error('Error updating assignment:', error);
-      res.status(500).json({ message: 'Error updating assignment' });
+      res.status(500).json({ 
+        message: 'Error updating assignment', 
+        error: String(error),
+        params: req.params
+      });
     }
   }
 
   async getAssignment(req: Request, res: Response) {
     try {
       const { subject, name } = req.params;
-      const filePath = await this.getAssignmentPath(subject, name);
-
+      
+      console.log(`Getting assignment: subject=${subject}, name=${name}`);
+      
+      // Find the assignment in the index first
+      const indexEntry = await findAssignment(subject, name);
+      
+      if (!indexEntry) {
+        console.log(`Assignment not found in index: subject=${subject}, name=${name}`);
+        return res.status(404).json({ 
+          message: 'Assignment not found',
+          subject,
+          name
+        });
+      }
+      
+      // Get the actual file path from the index
+      const filePath = path.join(process.cwd(), indexEntry.path);
+      console.log(`Reading assignment from path: ${filePath}`);
+      
       const content = await fs.readFile(filePath, 'utf-8');
       const assignment: Assignment = JSON.parse(content);
       res.json(assignment);
     } catch (error) {
       console.error('Error getting assignment:', error);
-      res.status(500).json({ message: 'Error getting assignment' });
+      res.status(500).json({ 
+        message: 'Error getting assignment', 
+        error: String(error),
+        params: req.params
+      });
     }
   }
-} 
+  
+  async deleteAssignment(req: Request, res: Response) {
+    try {
+      const { subject, name } = req.params;
+      
+      // Find the assignment in the index first
+      const indexEntry = await findAssignment(subject, name);
+      
+      if (!indexEntry) {
+        return res.status(404).json({ 
+          message: 'Assignment not found',
+          subject,
+          name
+        });
+      }
+      
+      // Get the actual file path from the index
+      const filePath = path.join(process.cwd(), indexEntry.path);
+      
+      // Delete the file
+      await fs.unlink(filePath);
+      
+      // Remove from index
+      await removeAssignmentFromIndex(subject, name);
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      res.status(500).json({ 
+        message: 'Error deleting assignment', 
+        error: String(error),
+        params: req.params
+      });
+    }
+  }
+}

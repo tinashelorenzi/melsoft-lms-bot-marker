@@ -1,8 +1,7 @@
+// src/routes/operatorRoutes.ts
 import express from 'express';
 import { validateApiToken, requireRole } from '../middleware/authMiddleware';
 import { OperatorController } from '../controllers/operator.controller';
-import fs from 'fs/promises';
-import path from 'path';
 
 const router = express.Router();
 const operatorController = new OperatorController();
@@ -65,17 +64,6 @@ router.post('/assignments', validateApiToken(), operatorController.createAssignm
 router.put('/assignments/:subject/:name', validateApiToken(), operatorController.updateAssignment.bind(operatorController));
 
 // Delete an assignment
-router.delete('/assignments/:subject/:name', validateApiToken(), async (req, res) => {
-  try {
-    const { subject, name } = req.params;
-    const filePath = await operatorController.getAssignmentPath(subject, name);
-    
-    await fs.unlink(filePath);
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error deleting assignment:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
+router.delete('/assignments/:subject/:name', validateApiToken(), operatorController.deleteAssignment.bind(operatorController));
 
 export default router;

@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "nodemon src/index.ts",
+    "dev": "nodemon --config nodemon.json",
     "build": "tsc",
     "test": "jest",
     "operator:dev": "vite",
