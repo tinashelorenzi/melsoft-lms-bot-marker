@@ -1,5 +1,5 @@
 // src/operator/components/MarkingStudio.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Question, Submission, MarkedSubmission } from "../../types/marker";
 
 interface MarkingStudioProps {
@@ -21,6 +21,7 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showStudio, setShowStudio] = useState(false);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
 
   const filteredAssignments = assignments.filter(
     (assignment) => assignment.subject === selectedCourse
@@ -78,11 +79,14 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
     try {
       setLoading(true);
       setError("");
+      setDebugInfo(null);
 
       const token = localStorage.getItem("operatorToken");
-      const assignment = assignments.find((a) => a.id === selectedAssignment);
+      const selectedAssignmentObj = assignments.find(
+        (a) => a.id === selectedAssignment
+      );
 
-      if (!assignment) {
+      if (!selectedAssignmentObj) {
         throw new Error("Assignment not found");
       }
 
@@ -94,39 +98,139 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
         throw new Error("Course not found");
       }
 
-      console.log(
-        `Loading assignment: Subject=${selectedCourseObj.name}, Name=${assignment.name}`
-      );
+      console.log(`Selected course:`, selectedCourseObj);
+      console.log(`Selected assignment:`, selectedAssignmentObj);
 
-      const response = await fetch(
-        `/api/operator/assignments/${encodeURIComponent(
+      // First try with the direct path
+      try {
+        const url = `/api/operator/assignments/${encodeURIComponent(
           selectedCourseObj.name
-        )}/${encodeURIComponent(assignment.name)}`,
-        {
+        )}/${encodeURIComponent(selectedAssignmentObj.name)}`;
+        console.log(`Fetching assignment from URL: ${url}`);
+
+        const response = await fetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (!data.questions || !Array.isArray(data.questions)) {
+            throw new Error("Invalid assignment data format");
+          }
+
+          setQuestions(
+            data.questions.map((q: any) => ({
+              ...q,
+              marks: q.marks || 0,
+            }))
+          );
+          setAnswers({});
+          setShowStudio(true);
+          return;
+        } else {
+          // Save the error response for debugging
+          const errorText = await response.text();
+          try {
+            const errorJson = JSON.parse(errorText);
+            console.error("Error fetching assignment:", errorJson);
+            setDebugInfo({
+              url,
+              status: response.status,
+              statusText: response.statusText,
+              errorData: errorJson,
+            });
+          } catch (e) {
+            console.error("Error response (not JSON):", errorText);
+            setDebugInfo({
+              url,
+              status: response.status,
+              statusText: response.statusText,
+              errorText,
+            });
+          }
         }
-      );
-
-      if (!response.ok) {
-        throw new Error(`Failed to load questions: ${response.statusText}`);
+      } catch (directError) {
+        console.error("Error with direct path:", directError);
       }
 
-      const data = await response.json();
-      if (!data.questions || !Array.isArray(data.questions)) {
-        throw new Error("Invalid assignment data format");
+      // Fallback - try debug endpoint to find similar assignments
+      try {
+        const debugUrl = `/api/operator/debug/find-assignment/${encodeURIComponent(
+          selectedCourseObj.name
+        )}/${encodeURIComponent(selectedAssignmentObj.name)}`;
+        console.log(`Trying debug endpoint: ${debugUrl}`);
+
+        const debugResponse = await fetch(debugUrl, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const debugData = await debugResponse.json();
+        console.log("Debug endpoint response:", debugData);
+
+        if (
+          debugData.similarAssignments &&
+          debugData.similarAssignments !== "No similar assignments found"
+        ) {
+          setDebugInfo((prevInfo) => ({
+            ...prevInfo,
+            debugResponse: debugData,
+          }));
+
+          if (debugData.similarAssignments.length === 1) {
+            // Try with the similar assignment found
+            const similar = debugData.similarAssignments[0];
+            console.log(`Trying with similar assignment:`, similar);
+
+            const similarUrl = `/api/operator/assignments/${encodeURIComponent(
+              similar.subject
+            )}/${encodeURIComponent(similar.name)}`;
+
+            const similarResponse = await fetch(similarUrl, {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            });
+
+            if (similarResponse.ok) {
+              const data = await similarResponse.json();
+              if (!data.questions || !Array.isArray(data.questions)) {
+                throw new Error("Invalid assignment data format");
+              }
+
+              setQuestions(
+                data.questions.map((q: any) => ({
+                  ...q,
+                  marks: q.marks || 0,
+                }))
+              );
+              setAnswers({});
+              setShowStudio(true);
+
+              // Update debug info to show we used a similar assignment
+              setDebugInfo((prevInfo) => ({
+                ...prevInfo,
+                usedSimilarAssignment: similar,
+                similarUrl,
+              }));
+
+              return;
+            }
+          }
+        }
+      } catch (debugError) {
+        console.error("Error with debug endpoint:", debugError);
       }
 
-      setQuestions(
-        data.questions.map((q: any) => ({
-          ...q,
-          marks: q.marks || 0,
-        }))
+      // If we reach here, we couldn't fetch the assignment
+      throw new Error(
+        `Assignment not found: ${selectedCourseObj.name}/${selectedAssignmentObj.name}. Please check if it exists in the system.`
       );
-      setAnswers({});
-      setShowStudio(true);
     } catch (err) {
+      console.error("Error loading questions:", err);
       setError(err instanceof Error ? err.message : "Failed to load questions");
       setShowStudio(false);
     } finally {
@@ -140,6 +244,36 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
     setAnswers({});
     setMarkingResult(null);
     setError("");
+    setDebugInfo(null);
+  };
+
+  // Helper to rebuild the index
+  const handleRebuildIndex = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("operatorToken");
+      const response = await fetch("/api/operator/debug/rebuild-index", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setDebugInfo((prevInfo) => ({
+          ...prevInfo,
+          indexRebuildResult: result,
+        }));
+        alert("Index rebuilt successfully. Try loading the assignment again.");
+      } else {
+        throw new Error("Failed to rebuild index");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to rebuild index");
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (!showStudio) {
@@ -194,7 +328,31 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
           </button>
 
           {error && (
-            <div className="text-red-500 mt-4 text-center">{error}</div>
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 mt-4">
+              <div className="flex">
+                <div className="ml-3">
+                  <p className="text-sm text-red-700">{error}</p>
+                  <button
+                    onClick={handleRebuildIndex}
+                    className="mt-2 text-sm font-medium text-red-700 hover:text-red-900"
+                    disabled={loading}
+                  >
+                    Rebuild Assignment Index
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {debugInfo && (
+            <div className="mt-6 bg-gray-50 border border-gray-300 p-4 rounded">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">
+                Debug Information:
+              </h3>
+              <pre className="text-xs bg-gray-100 p-2 rounded overflow-auto max-h-64">
+                {JSON.stringify(debugInfo, null, 2)}
+              </pre>
+            </div>
           )}
         </div>
       </div>

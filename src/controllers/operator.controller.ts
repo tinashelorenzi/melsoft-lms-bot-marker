@@ -7,7 +7,8 @@ import {
   getAssignmentIndex, 
   findAssignment, 
   updateAssignmentInIndex, 
-  removeAssignmentFromIndex 
+  removeAssignmentFromIndex,
+  normalizeString
 } from '../services/assignmentIndexService';
 
 const ASSIGNMENTS_DIR = path.join(process.cwd(), 'assignments');
@@ -31,12 +32,14 @@ export class OperatorController {
     try {
       // Use the index instead of scanning directories
       const index = await getAssignmentIndex();
+      console.log(`Found ${index.assignments.length} assignments in index`);
       
       // Convert index entries to Assignment objects
       const assignments: Assignment[] = await Promise.all(
         index.assignments.map(async (entry) => {
           try {
             const filePath = path.join(process.cwd(), entry.path);
+            console.log(`Reading assignment from: ${filePath}`);
             const content = await fs.readFile(filePath, 'utf-8');
             return JSON.parse(content) as Assignment;
           } catch (error) {
@@ -54,6 +57,7 @@ export class OperatorController {
         })
       );
       
+      console.log(`Successfully loaded ${assignments.length} assignments`);
       res.json(assignments);
     } catch (error) {
       console.error('Error listing assignments:', error);
@@ -92,19 +96,26 @@ export class OperatorController {
       const { subject, name } = req.params;
       const updates: UpdateAssignmentDto = req.body;
       
+      console.log(`Updating assignment: subject=${subject}, name=${name}`);
+      
       // Find the assignment in the index first
       const indexEntry = await findAssignment(subject, name);
       
       if (!indexEntry) {
+        console.error(`Assignment not found in index: ${subject}/${name}`);
+        console.error(`Normalized values: ${normalizeString(subject)}/${normalizeString(name)}`);
         return res.status(404).json({ 
           message: 'Assignment not found',
           subject,
-          name
+          name,
+          normalizedSubject: normalizeString(subject),
+          normalizedName: normalizeString(name)
         });
       }
       
       // Get the actual file path
       const filePath = path.join(process.cwd(), indexEntry.path);
+      console.log(`Found assignment at path: ${filePath}`);
       
       // Read the existing assignment
       const existingContent = await fs.readFile(filePath, 'utf-8');
@@ -139,16 +150,25 @@ export class OperatorController {
       const { subject, name } = req.params;
       
       console.log(`Getting assignment: subject=${subject}, name=${name}`);
+      console.log(`Normalized values: ${normalizeString(subject)}/${normalizeString(name)}`);
       
       // Find the assignment in the index first
       const indexEntry = await findAssignment(subject, name);
       
       if (!indexEntry) {
-        console.log(`Assignment not found in index: subject=${subject}, name=${name}`);
+        // List all available assignments in the index for debugging
+        const index = await getAssignmentIndex();
+        console.log('Available assignments in index:');
+        index.assignments.forEach(a => {
+          console.log(`- ${a.subject}/${a.name} (normalized: ${a.normalizedSubject}/${a.normalizedName})`);
+        });
+        
         return res.status(404).json({ 
           message: 'Assignment not found',
           subject,
-          name
+          name,
+          normalizedSubject: normalizeString(subject),
+          normalizedName: normalizeString(name)
         });
       }
       
