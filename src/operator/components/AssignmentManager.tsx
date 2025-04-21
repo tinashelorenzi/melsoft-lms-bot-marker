@@ -225,23 +225,56 @@ export const AssignmentManager: React.FC = () => {
     fetchAssignments();
   };
 
+  const renderAssignmentList = () => {
+    return (
+      <ul className="space-y-4">
+        {assignments.map((assignment) => (
+          <li
+            key={`${assignment.subject}-${assignment.name}`}
+            className="border p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex justify-between items-start">
+              <div>
+                <h3 className="text-lg font-semibold">{assignment.name}</h3>
+                <p className="text-gray-600">{assignment.subject}</p>
+                <p className="text-sm text-gray-500">
+                  Questions: {assignment.questions?.length || 0}
+                </p>
+              </div>
+              <div className="space-x-2">
+                <button
+                  onClick={() => setSelectedAssignment(assignment)}
+                  className="px-3 py-1 text-blue-600 hover:text-blue-800"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteAssignment(assignment)}
+                  className="px-3 py-1 text-red-600 hover:text-red-800"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+  };
+
   return (
-    <div>
-      <h2 className="text-2xl font-bold mb-6">Assignments</h2>
+    <div className="container mx-auto p-4">
+      <h2 className="text-2xl font-bold mb-6">Assignment Manager</h2>
 
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
-          <div className="flex">
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
-              <button
-                onClick={handleRetry}
-                className="mt-2 text-sm font-medium text-red-700 hover:text-red-900"
-              >
-                Retry
-              </button>
-            </div>
-          </div>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4">
+          <span className="block sm:inline">{error}</span>
+          <button
+            className="text-blue-600 hover:text-blue-800 ml-4"
+            onClick={handleRetry}
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -263,149 +296,61 @@ export const AssignmentManager: React.FC = () => {
           onCancel={() => setSelectedAssignment(null)}
         />
       ) : (
-        <>
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg mb-8">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Create New Assignment
-              </h3>
+        <div className="space-y-6">
+          <form onSubmit={handleCreateAssignment} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Name
+              </label>
+              <input
+                type="text"
+                value={newAssignment.name}
+                onChange={(e) =>
+                  setNewAssignment({ ...newAssignment, name: e.target.value })
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
             </div>
-            <div className="border-t border-gray-200 px-4 py-5 sm:px-6">
-              <form onSubmit={handleCreateAssignment}>
-                <div className="grid grid-cols-1 gap-4">
-                  <div>
-                    <label
-                      htmlFor="name"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Assignment Name
-                    </label>
-                    <input
-                      type="text"
-                      id="name"
-                      required
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      value={newAssignment.name}
-                      onChange={(e) =>
-                        setNewAssignment({
-                          ...newAssignment,
-                          name: e.target.value,
-                        })
-                      }
-                      disabled={isLoading}
-                    />
-                  </div>
 
-                  <div>
-                    <label
-                      htmlFor="subject"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Subject
-                    </label>
-                    <input
-                      type="text"
-                      id="subject"
-                      required
-                      className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      value={newAssignment.subject}
-                      onChange={(e) =>
-                        setNewAssignment({
-                          ...newAssignment,
-                          subject: e.target.value,
-                        })
-                      }
-                      disabled={isLoading}
-                    />
-                  </div>
-
-                  <div>
-                    <button
-                      type="submit"
-                      className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Creating..." : "Create Assignment"}
-                    </button>
-                  </div>
-                </div>
-              </form>
+            <div>
+              <label className="block text-sm font-medium text-gray-700">
+                Subject
+              </label>
+              <input
+                type="text"
+                value={newAssignment.subject}
+                onChange={(e) =>
+                  setNewAssignment({
+                    ...newAssignment,
+                    subject: e.target.value,
+                  })
+                }
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                required
+              />
             </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
+            >
+              {isLoading ? "Creating..." : "Create Assignment"}
+            </button>
+          </form>
+
+          <div>
+            <h3 className="text-lg font-medium mb-4">Existing Assignments</h3>
+            {isLoading ? (
+              <p>Loading assignments...</p>
+            ) : assignments.length > 0 ? (
+              renderAssignmentList()
+            ) : (
+              <p>No assignments found.</p>
+            )}
           </div>
-
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div className="px-4 py-5 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Existing Assignments
-              </h3>
-            </div>
-            <div className="border-t border-gray-200">
-              {isLoading ? (
-                <div className="px-4 py-5 sm:px-6 flex items-center">
-                  <svg
-                    className="animate-spin -ml-1 mr-3 h-5 w-5 text-indigo-500"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                  Loading assignments...
-                </div>
-              ) : assignments.length === 0 ? (
-                <div className="px-4 py-5 sm:px-6 text-gray-500">
-                  No assignments found. Create one above.
-                </div>
-              ) : (
-                <ul className="divide-y divide-gray-200">
-                  {assignments.map((assignment) => (
-                    <li key={assignment.id} className="px-4 py-4 sm:px-6">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="text-lg font-medium text-gray-900">
-                            {assignment.name}
-                          </h4>
-                          <p className="text-sm text-gray-500">
-                            Subject: {assignment.subject}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            Questions: {assignment.questions.length}
-                          </p>
-                        </div>
-                        <div className="flex space-x-2">
-                          <button
-                            onClick={() => setSelectedAssignment(assignment)}
-                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => handleDeleteAssignment(assignment)}
-                            className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </>
+        </div>
       )}
     </div>
   );

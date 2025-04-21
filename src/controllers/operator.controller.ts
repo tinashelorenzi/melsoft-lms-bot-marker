@@ -30,34 +30,38 @@ export class OperatorController {
 
   async listAssignments(req: Request, res: Response) {
     try {
+      console.log("Listing assignments using index...");
+      
       // Use the index instead of scanning directories
       const index = await getAssignmentIndex();
       console.log(`Found ${index.assignments.length} assignments in index`);
       
       // Convert index entries to Assignment objects
-      const assignments: Assignment[] = await Promise.all(
-        index.assignments.map(async (entry) => {
-          try {
-            const filePath = path.join(process.cwd(), entry.path);
-            console.log(`Reading assignment from: ${filePath}`);
-            const content = await fs.readFile(filePath, 'utf-8');
-            return JSON.parse(content) as Assignment;
-          } catch (error) {
-            console.error(`Error reading assignment file ${entry.path}:`, error);
-            // Return a minimal assignment object if file can't be read
-            return {
-              id: entry.id,
-              name: entry.name,
-              subject: entry.subject,
-              questions: [],
-              createdAt: entry.updatedAt,
-              updatedAt: entry.updatedAt
-            };
-          }
-        })
-      );
+      const assignments: Assignment[] = [];
+      
+      for (const entry of index.assignments) {
+        try {
+          const filePath = path.join(process.cwd(), entry.path);
+          console.log(`Reading assignment from: ${filePath}`);
+          const content = await fs.readFile(filePath, 'utf-8');
+          const assignment: Assignment = JSON.parse(content);
+          assignments.push(assignment);
+        } catch (error) {
+          console.error(`Error reading assignment file ${entry.path}:`, error);
+          // Return a minimal assignment object if file can't be read
+          assignments.push({
+            id: entry.id,
+            name: entry.name,
+            subject: entry.subject,
+            questions: [],
+            createdAt: entry.updatedAt,
+            updatedAt: entry.updatedAt
+          });
+        }
+      }
       
       console.log(`Successfully loaded ${assignments.length} assignments`);
+      console.log(`Assignments being returned:`, assignments.map(a => ({ id: a.id, name: a.name, subject: a.subject })));
       res.json(assignments);
     } catch (error) {
       console.error('Error listing assignments:', error);

@@ -5,6 +5,7 @@ import cors from 'cors';
 import path from 'path';
 import fs from 'fs/promises';
 import operatorRoutes from './routes/operatorRoutes';
+import markerRoutes from './routes/markerRoutes';
 import { buildAssignmentsIndex } from './services/assignmentIndexService';
 
 // Load environment variables
@@ -99,6 +100,7 @@ const ensureAssignmentsDirExists = async () => {
 
 // Setup routes
 app.use('/api/operator', operatorRoutes);
+app.use('/api/marker', markerRoutes);
 
 // Basic health check route
 app.get('/', (req, res) => {

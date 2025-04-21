@@ -7,7 +7,6 @@ async function rebuildIndex() {
   console.log('\n🔍 ASSIGNMENT INDEX REBUILDER 🔍\n');
   console.log('This tool will scan your assignments directory and rebuild the index file');
   console.log('that maps between course/assignment names and actual files on disk.\n');
-  console.log('Starting to rebuild assignment index...');
   
   try {
     // First, show the current files in the assignments directory
@@ -85,3 +84,6 @@ async function rebuildIndex() {
     process.exit(1);
   }
 }
+
+// Execute the function
+rebuildIndex();

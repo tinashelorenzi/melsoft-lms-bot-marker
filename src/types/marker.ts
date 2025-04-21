@@ -1,10 +1,13 @@
 import { Question as BaseQuestion } from ".";
 
-export interface Question extends BaseQuestion {
-  marks: number;  // Make marks required for marking
+export interface Question {
+  id: string;
+  text: string;
+  answer: string;
+  marks: number;
 }
 
-export interface SubmissionAnswer {
+export interface Answer {
   questionId: string;
   answer: string;
 }
@@ -14,25 +17,23 @@ export interface Submission {
   assignmentName: string;
   subject: string;
   studentId: string;
-  answers: SubmissionAnswer[];
+  answers: Answer[];
   submittedAt: string;
 }
 
 export interface MarkingResult {
   questionId: string;
   score: number;
-  feedback: string;
   maxMarks: number;
+  feedback: string;
 }
 
 export interface MarkedSubmission {
   submissionId: string;
-  studentId: string;
-  assignmentName: string;
-  subject: string;
   results: MarkingResult[];
   totalScore: number;
   maxScore: number;
+  feedback: string;
   markedAt: string;
 }
 

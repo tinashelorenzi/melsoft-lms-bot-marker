@@ -2,6 +2,8 @@
 import React, { useState, useEffect } from "react";
 import { Question, Submission, MarkedSubmission } from "../../types/marker";
 
+const API_URL = "http://localhost:3000"; // Add API URL constant
+
 interface MarkingStudioProps {
   courses: { id: string; name: string }[];
   assignments: { id: string; name: string; subject: string }[];
@@ -21,7 +23,7 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showStudio, setShowStudio] = useState(false);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+  const [debugInfo, setDebugInfo] = useState<Record<string, any> | null>(null);
 
   const filteredAssignments = assignments.filter(
     (assignment) => assignment.subject === selectedCourse
@@ -50,7 +52,7 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
       };
 
       const token = localStorage.getItem("operatorToken");
-      const response = await fetch("/api/marker/mark", {
+      const response = await fetch(`${API_URL}/api/marker/mark`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -63,12 +65,15 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Marking error response:", errorText);
         throw new Error("Failed to mark submission");
       }
 
       const result = await response.json();
       setMarkingResult(result);
     } catch (err) {
+      console.error("Error during marking:", err);
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setLoading(false);
@@ -82,11 +87,8 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
       setDebugInfo(null);
 
       const token = localStorage.getItem("operatorToken");
-      const selectedAssignmentObj = assignments.find(
-        (a) => a.id === selectedAssignment
-      );
-
-      if (!selectedAssignmentObj) {
+      const assignment = assignments.find((a) => a.id === selectedAssignment);
+      if (!assignment) {
         throw new Error("Assignment not found");
       }
 
@@ -98,137 +100,42 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
         throw new Error("Course not found");
       }
 
-      console.log(`Selected course:`, selectedCourseObj);
-      console.log(`Selected assignment:`, selectedAssignmentObj);
-
-      // First try with the direct path
-      try {
-        const url = `/api/operator/assignments/${encodeURIComponent(
-          selectedCourseObj.name
-        )}/${encodeURIComponent(selectedAssignmentObj.name)}`;
-        console.log(`Fetching assignment from URL: ${url}`);
-
-        const response = await fetch(url, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          if (!data.questions || !Array.isArray(data.questions)) {
-            throw new Error("Invalid assignment data format");
-          }
-
-          setQuestions(
-            data.questions.map((q: any) => ({
-              ...q,
-              marks: q.marks || 0,
-            }))
-          );
-          setAnswers({});
-          setShowStudio(true);
-          return;
-        } else {
-          // Save the error response for debugging
-          const errorText = await response.text();
-          try {
-            const errorJson = JSON.parse(errorText);
-            console.error("Error fetching assignment:", errorJson);
-            setDebugInfo({
-              url,
-              status: response.status,
-              statusText: response.statusText,
-              errorData: errorJson,
-            });
-          } catch (e) {
-            console.error("Error response (not JSON):", errorText);
-            setDebugInfo({
-              url,
-              status: response.status,
-              statusText: response.statusText,
-              errorText,
-            });
-          }
-        }
-      } catch (directError) {
-        console.error("Error with direct path:", directError);
-      }
-
-      // Fallback - try debug endpoint to find similar assignments
-      try {
-        const debugUrl = `/api/operator/debug/find-assignment/${encodeURIComponent(
-          selectedCourseObj.name
-        )}/${encodeURIComponent(selectedAssignmentObj.name)}`;
-        console.log(`Trying debug endpoint: ${debugUrl}`);
-
-        const debugResponse = await fetch(debugUrl, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const debugData = await debugResponse.json();
-        console.log("Debug endpoint response:", debugData);
-
-        if (
-          debugData.similarAssignments &&
-          debugData.similarAssignments !== "No similar assignments found"
-        ) {
-          setDebugInfo((prevInfo) => ({
-            ...prevInfo,
-            debugResponse: debugData,
-          }));
-
-          if (debugData.similarAssignments.length === 1) {
-            // Try with the similar assignment found
-            const similar = debugData.similarAssignments[0];
-            console.log(`Trying with similar assignment:`, similar);
-
-            const similarUrl = `/api/operator/assignments/${encodeURIComponent(
-              similar.subject
-            )}/${encodeURIComponent(similar.name)}`;
-
-            const similarResponse = await fetch(similarUrl, {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            });
-
-            if (similarResponse.ok) {
-              const data = await similarResponse.json();
-              if (!data.questions || !Array.isArray(data.questions)) {
-                throw new Error("Invalid assignment data format");
-              }
-
-              setQuestions(
-                data.questions.map((q: any) => ({
-                  ...q,
-                  marks: q.marks || 0,
-                }))
-              );
-              setAnswers({});
-              setShowStudio(true);
-
-              // Update debug info to show we used a similar assignment
-              setDebugInfo((prevInfo) => ({
-                ...prevInfo,
-                usedSimilarAssignment: similar,
-                similarUrl,
-              }));
-
-              return;
-            }
-          }
-        }
-      } catch (debugError) {
-        console.error("Error with debug endpoint:", debugError);
-      }
-
-      // If we reach here, we couldn't fetch the assignment
-      throw new Error(
-        `Assignment not found: ${selectedCourseObj.name}/${selectedAssignmentObj.name}. Please check if it exists in the system.`
+      console.log(
+        `Loading assignment: Subject=${selectedCourseObj.name}, Name=${assignment.name}`
       );
+
+      const response = await fetch(
+        `/api/operator/assignments/${encodeURIComponent(
+          selectedCourseObj.name
+        )}/${encodeURIComponent(assignment.name)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response:", errorText);
+        throw new Error(
+          `Failed to load questions: ${response.status} ${response.statusText}`
+        );
+      }
+
+      const data = await response.json();
+      if (!data.questions || !Array.isArray(data.questions)) {
+        throw new Error("Invalid assignment data format");
+      }
+
+      setQuestions(
+        data.questions.map((q: any) => ({
+          ...q,
+          marks: q.marks || 0,
+        }))
+      );
+      setAnswers({});
+      setShowStudio(true);
     } catch (err) {
       console.error("Error loading questions:", err);
       setError(err instanceof Error ? err.message : "Failed to load questions");
@@ -293,7 +200,9 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
                 setSelectedAssignment("");
               }}
             >
-              <option value="">Select a course</option>
+              <option key="default" value="">
+                Select a course
+              </option>
               {courses.map((course) => (
                 <option key={course.id} value={course.id}>
                   {course.name}
@@ -310,7 +219,9 @@ export const MarkingStudio: React.FC<MarkingStudioProps> = ({
               onChange={(e) => setSelectedAssignment(e.target.value)}
               disabled={!selectedCourse}
             >
-              <option value="">Select an assignment</option>
+              <option key="default" value="">
+                Select an assignment
+              </option>
               {filteredAssignments.map((assignment) => (
                 <option key={assignment.id} value={assignment.id}>
                   {assignment.name}
